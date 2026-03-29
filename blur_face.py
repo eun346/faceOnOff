@@ -2,7 +2,6 @@ import os
 from datetime import datetime
 import cv2
 
-
 # This script opens the default webcam, detects faces in real time, and applies
 # a pixelation effect to protect privacy. The user can interactively control
 # blur strength, choose faces that should stay unblurred, and record the
@@ -18,15 +17,19 @@ import cv2
 
 # OpenCV window title shown at the top of the preview window.
 WINDOW_NAME = "Blur Face Video"
+# Camera capture size. Lower input resolution reduces the amount of work done
+# by both the webcam pipeline and the face detector.
+CAPTURE_WIDTH = 960
+CAPTURE_HEIGHT = 540
 # Minimum candidate face size. Very tiny detections are usually false positives,
 # so this threshold removes boxes that are too small to be trustworthy.
 MIN_FACE_SIZE = 20
 # Detection is run on a resized grayscale frame for speed. A smaller value means
 # faster detection, but also less detail for the classifiers to work with.
-DETECTION_SCALE = 0.7
+DETECTION_SCALE = 0.5
 # Run the heavy detector every N frames. Cached results are reused in between to
 # keep the live preview responsive.
-PROCESS_EVERY_N_FRAMES = 1
+PROCESS_EVERY_N_FRAMES = 3
 # Allowed width/height ratio range for a "reasonable" face box.
 MIN_FACE_ASPECT = 0.55
 MAX_FACE_ASPECT = 1.85
@@ -77,6 +80,8 @@ ui_state = {
     "frame_count": 0,
     # Latest raw detections reused between detection passes.
     "cached_faces": [],
+    # Latest stabilized faces reused between detection passes.
+    "stable_faces": [],
     # Temporary tracked detections used to stabilize boxes across frames before
     # they are accepted as reliable faces.
     "face_candidates": [],  # [{"box": (x, y, w, h), "hits": int, "misses": int}]
@@ -106,7 +111,6 @@ profile_cascade = cv2.CascadeClassifier(
 FACE_CASCADES = (
     (frontal_default_cascade, 1.08, 4),
     (frontal_alt2_cascade, 1.08, 3),
-    (frontal_alt_tree_cascade, 1.08, 3),
     (profile_cascade, 1.1, 3),
 )
 
@@ -620,7 +624,7 @@ def draw_ui(frame):
 
     cv2.putText(
         frame,
-        "Keys: q=quit, r=record, e=exempt on/off, c=clear all exempt",
+        "Keys: q=quit, r=record, c=clear all exempt",
         (int(20 * ui_scale), h - int(50 * ui_scale)),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.52 * ui_scale,
@@ -676,10 +680,12 @@ def on_mouse(event, x, y, flags, param):
 
 # Open webcam device 0, which is usually the default built-in camera.
 video_capture = cv2.VideoCapture(0)
-# Set a higher resolution so the preview and UI overlays are easier to see
-# (the camera may adjust to the closest supported resolution)
-video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+# Use a moderate capture resolution so the preview still looks good without
+# making real-time detection unnecessarily expensive.
+video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, CAPTURE_WIDTH)
+video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, CAPTURE_HEIGHT)
+# Keep the internal buffer small to reduce visible latency.
+video_capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
 # Reuse the camera FPS when available so the saved recording plays back with a
 # timing that matches the live preview more closely.
@@ -701,18 +707,18 @@ while True:
     # Store the latest frame size (wdth, height))
     ui_state["latest_frame_size"] = (frame.shape[1], frame.shape[0])
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) #Convert the frame to grayscale since Haar cascades work on intensity, not color.
-    gray = cv2.equalizeHist(gray) # Apply histogram equalization to improve contrast and make detection more robust in poor lighting.
-
-    # Run expensive detection only at the configured interval(1). In between, reuse
+    # Run expensive detection only at the configured interval. In between, reuse
     # the most recent result to reduce CPU usage while keeping interaction fast.
     if ui_state["frame_count"] % PROCESS_EVERY_N_FRAMES == 0:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # Convert to grayscale only when face detection runs.
+        gray = cv2.equalizeHist(gray) # Improve contrast to make detection more robust in poor lighting.
         raw_faces = detect_faces(gray)
         ui_state["cached_faces"] = [f for f in raw_faces if is_reasonable_face_box(f, frame.shape)]
+        ui_state["stable_faces"] = stabilize_faces(list(ui_state["cached_faces"]))
 
     # Only stabilized boxes are used for blur and UI interactions so noisy
     # one-frame detections do not immediately affect the output.
-    faces = stabilize_faces(list(ui_state["cached_faces"]))
+    faces = list(ui_state["stable_faces"])
     ui_state["clickable_faces"] = faces # update the list of faces that can be clicked for exemption toggling
     update_exempt_targets(faces) # keep the exempt target tracking aligned with the latest stable detections
 
@@ -785,8 +791,6 @@ while True:
         break
     if key == ord("r"):
         toggle_recording()
-    if key == ord("e"):
-        ui_state["exempt_enabled"] = not ui_state["exempt_enabled"]
     if key == ord("c"):
         ui_state["exempt_targets"] = []
 
