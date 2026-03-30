@@ -1,33 +1,9 @@
 # faceOnOff
 
-**faceOnOff** is a real-time webcam-based face privacy control system that detects faces and selectively applies pixelation (blur) with interactive controls.
+**faceOnOff** is a real-time webcam application that detects human faces and applies pixelation to protect privacy.
+Unlike traditional face recognition projects, this system focuses on **live interaction, user control, and performance optimization** rather than identity recognition.
 
-Unlike simple face blurring tools, this project allows users to dynamically choose **which faces to hide and which to keep visible**, providing fine-grained control over privacy in real-time video streams.
-
----
-
-## ⚠️ Problem Statement
-
-Most face-blurring systems follow a simple rule:
-
-* Detect all faces
-* Blur everything
-
-This approach is limited because:
-
-* Users cannot **exclude specific people** (e.g., themselves)
-* There is **no interaction** with detected faces
-* Many systems suffer from **false positives or unstable detection**
-* Users cannot control **blur intensity dynamically**
-
-In real-world scenarios (streaming, recording, meetings), users often want:
-
-* To blur others but not themselves
-* To toggle privacy dynamically
-* To control how strong the blur is
-* Stable detection without flickering
-
-faceOnOff addresses these issues by combining detection, tracking, and interactive UI.
+The application allows users to selectively hide faces, adjust pixelation strength, and record processed video output in real time.
 
 ---
 
@@ -185,7 +161,6 @@ This project is inspired by the face detection workflow shown in the
 | ------------------ | ---------------- |
 | Quit               | `q`              |
 | Toggle Recording   | `r`              |
-| Toggle Exempt Mode | `e`              |
 | Clear Exempt Faces | `c`              |
 | Change Blur Level  | Click UI circles |
 | Select Face        | Mouse click      |
