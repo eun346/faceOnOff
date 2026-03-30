@@ -141,9 +141,9 @@ def iou_xywh(a, b):
     # (x, y, width, height)
     ax, ay, aw, ah = a
     bx, by, bw, bh = b
-    # A 박스:
-    # 왼쪽 위 = (ax, ay)
-    # 오른쪽 아래 = (ax2, ay2)
+    # A Box:
+    # Left top = (ax, ay)
+    # Right bottom = (ax2, ay2)
     ax2, ay2 = ax + aw, ay + ah
     bx2, by2 = bx + bw, by + bh
 
