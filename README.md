@@ -211,12 +211,4 @@ Ultimately, this project explores how computer vision can be combined with UI/UX
 * GPU acceleration
 * Web-based version (WebRTC + WASM)
 
----
-
-## 🧩 Suggested Project Extensions (for you)
-
-* OBS plugin integration (streaming use-case)
-* VR/AR privacy filter (your MR 관심이랑 연결 가능)
-* Multi-user tagging system
-* Real-time anonymization for datasets
 
